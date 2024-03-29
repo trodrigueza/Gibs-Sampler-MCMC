@@ -124,7 +124,7 @@ md"Finalmente, definimos la función `precompute` para correr el Gibb Sampler y 
 
 # ╔═╡ 5748c8a5-37c8-4faa-a91f-dec19237db4a
 function precompute(k, total_steps)
-	Random.seed!(123) # Para repetir el experimento con las mismas condiciones
+	Random.seed!(73) # Para repetir el experimento con las mismas condiciones
     configurations = []
     config = zeros(Int, k, k) # Configuración inicial
 
@@ -168,20 +168,27 @@ md"Obteniendo la siguiente visualización de las configuraciones obtenidas en ca
 Nota: Si el valor de $t$ llega al valor de $steps$ reinicie el reloj. Para visualizar mediante un slider, edite la celda de abajo, descomente la línea 1 y comente la línea 2. "
 
 # ╔═╡ 88e56f5e-e737-4845-b334-a36e344afb3e
-begin
-# Visualizar paso n
-# Con un slider:
 #@bind t Slider(1:steps, show_value=true)
-
-# Automáticamente:
 @bind t Clock(0.1, true)
-end
 
 # ╔═╡ 06f3008b-e221-443d-af27-db5e471cf777
 t
 
 # ╔═╡ cd721211-5e8c-482e-a241-a70d8ca5e1a6
 visualize(configurations[t])
+
+# ╔═╡ 20b1ee19-0688-4a04-b097-78717935fd21
+md"Salvaremos algunas de estas configuraciones para adjuntar en el repositorio."
+
+# ╔═╡ b065f05b-dcc2-4bc1-be9d-90d4aa971dd3
+for i in 1:3:50
+	savefig(visualize(configurations[i]), "X_"*string(i)*".png")
+end
+
+# ╔═╡ 85a006b6-2e6f-4d78-8da9-758e5e727959
+for i in 1:Int(steps/20):steps
+	savefig(visualize(configurations[i]), "X_"*string(i)*".png")
+end
 
 # ╔═╡ 9e0c101e-7ed2-46fc-979f-2dec6f3502cb
 md"## Segundo Punto"
@@ -1437,6 +1444,9 @@ version = "1.4.1+1"
 # ╠═88e56f5e-e737-4845-b334-a36e344afb3e
 # ╠═06f3008b-e221-443d-af27-db5e471cf777
 # ╟─cd721211-5e8c-482e-a241-a70d8ca5e1a6
+# ╟─20b1ee19-0688-4a04-b097-78717935fd21
+# ╠═b065f05b-dcc2-4bc1-be9d-90d4aa971dd3
+# ╠═85a006b6-2e6f-4d78-8da9-758e5e727959
 # ╟─9e0c101e-7ed2-46fc-979f-2dec6f3502cb
 # ╟─7fbc57be-05cf-47d4-bf94-3e5acdefca54
 # ╟─d8ea92ca-6281-4b90-b54a-1c479cb0f5f2
