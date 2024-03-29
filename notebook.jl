@@ -182,12 +182,12 @@ md"Salvaremos algunas de estas configuraciones para adjuntar en el repositorio."
 
 # ╔═╡ b065f05b-dcc2-4bc1-be9d-90d4aa971dd3
 for i in 1:3:50
-	savefig(visualize(configurations[i]), "X_"*string(i)*".png")
+	savefig(visualize(configurations[i]), "./images/hard-core-configurations/X_"*string(i)*".png")
 end
 
 # ╔═╡ 85a006b6-2e6f-4d78-8da9-758e5e727959
 for i in 1:Int(steps/20):steps
-	savefig(visualize(configurations[i]), "X_"*string(i)*".png")
+	savefig(visualize(configurations[i]), "./images/hard-core-configurations/X_"*string(i)*".png")
 end
 
 # ╔═╡ 9e0c101e-7ed2-46fc-979f-2dec6f3502cb
