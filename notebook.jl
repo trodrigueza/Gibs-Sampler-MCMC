@@ -20,6 +20,7 @@ begin
 	using Random
 	using Plots
 	using PlutoUI
+	using DataFrames
 end
 
 # ╔═╡ 90f95380-9cc9-429b-bd04-2585bae33e1e
@@ -123,8 +124,8 @@ end
 md"Finalmente, definimos la función `precompute` para correr el Gibb Sampler y guardar las configuraciones generadas para posteriormente poder visualizar la cadena de Markov. Partiremos con una configuración inical en la que todas las celdas están apagadas, lo cual es válido pues se probó que la cadena generada por este algoritmo para este modelo en particular es irreducible, aperiódica y reversible."
 
 # ╔═╡ 5748c8a5-37c8-4faa-a91f-dec19237db4a
-function precompute(k, total_steps)
-	Random.seed!(73) # Para repetir el experimento con las mismas condiciones
+function precompute(k, total_steps, seed)
+	Random.seed!(seed) # Para repetir el experimento con las mismas condiciones
     configurations = []
     config = zeros(Int, k, k) # Configuración inicial
 
@@ -153,14 +154,14 @@ md"Número de interaciones $steps$ (tiempo final):"
 
 # ╔═╡ 57df806a-15bb-4ac4-9cad-cfc37e435867
 begin
-@bind steps Select([10000, 100000])
+@bind steps Select([10000, 100000, 1000000])
 end
 
 # ╔═╡ 38434598-cf71-4c06-9dc6-bb46c2b8d996
 steps
 
 # ╔═╡ 09cfde5f-a644-4fa7-b7fa-5fb4beb394ba
-configurations = precompute(k, steps); # corremos la cadena
+configurations = precompute(k, steps, 73); # corremos la cadena
 
 # ╔═╡ abcf1697-430b-48c8-8851-0acb6aab6c68
 md"Obteniendo la siguiente visualización de las configuraciones obtenidas en cada tiempo $t$:
@@ -168,8 +169,8 @@ md"Obteniendo la siguiente visualización de las configuraciones obtenidas en ca
 Nota: Si el valor de $t$ llega al valor de $steps$ reinicie el reloj. Para visualizar mediante un slider, edite la celda de abajo, descomente la línea 1 y comente la línea 2. "
 
 # ╔═╡ 88e56f5e-e737-4845-b334-a36e344afb3e
-#@bind t Slider(1:steps, show_value=true)
-@bind t Clock(0.1, true)
+@bind t Slider(1:steps, show_value=true)
+#@bind t Clock(0.1, true)
 
 # ╔═╡ 06f3008b-e221-443d-af27-db5e471cf777
 t
@@ -181,14 +182,21 @@ visualize(configurations[t])
 md"Salvaremos algunas de estas configuraciones para adjuntar en el repositorio."
 
 # ╔═╡ b065f05b-dcc2-4bc1-be9d-90d4aa971dd3
+# ╠═╡ disabled = true
+# ╠═╡ skip_as_script = true
+#=╠═╡
 for i in 1:3:50
 	savefig(visualize(configurations[i]), "./images/hard-core-configurations/X_"*string(i)*".png")
 end
+  ╠═╡ =#
 
 # ╔═╡ 85a006b6-2e6f-4d78-8da9-758e5e727959
+# ╠═╡ disabled = true
+#=╠═╡
 for i in 1:Int(steps/20):steps
 	savefig(visualize(configurations[i]), "./images/hard-core-configurations/X_"*string(i)*".png")
 end
+  ╠═╡ =#
 
 # ╔═╡ 9e0c101e-7ed2-46fc-979f-2dec6f3502cb
 md"## Segundo Punto"
@@ -196,6 +204,142 @@ md"## Segundo Punto"
 # ╔═╡ 7fbc57be-05cf-47d4-bf94-3e5acdefca54
 md"Usar muestras generadas con lo hecho en el ejercicio anterior para estimar el número de partículas ''típico'' que tiene una configuración factible en la rejilla $k\times k$.
 De hecho, lo ideal sería hacer un histograma. Verificar cómo cambia el histograma si en lo hecho en el primer punto se toman en vez de $X_{10000}$ o $X_{100000}$, otros tiempos de la cadena $\{X_t\}$."
+
+# ╔═╡ 74da9482-2e9f-47ce-8ddc-e2fb6e9443ef
+md"Por cada muestra generada en el primer ejercicio, contaremos el número de partículas y lo almacenaremos el arreglo `num_particles` para posteriormente visualizar la frecuencia de dichas cantidades en un histograma."
+
+# ╔═╡ eb6fbbba-2a73-491b-9186-26f0649fbd57
+num_particles = Int[]; # Si se cambia el valor de k o de steps, correr esta línea de nuevo para actualizar el histograma
+
+# ╔═╡ 754fe2bc-f73f-4443-b2e3-e9fcf6df7268
+for config in configurations
+	num = sum(config)
+	push!(num_particles, num)
+end
+
+# ╔═╡ 7edee3e1-a2d8-4c94-a49c-41d16fcefb30
+md"Obteniendo el siguiente histograma:"
+
+# ╔═╡ c168baa0-8768-4357-8efe-1d2d8c4c64e1
+begin
+cant = round(mean(num_particles), RoundDown)
+por = round(100*cant/(k*k), sigdigits=4)
+h1 = histogram(num_particles, bins=maximum(num_particles)-minimum(num_particles), label="",
+          xlabel="Número de partículas", ylabel="Frecuencia", 
+          title="Número de partículas en una grilla $k x $k")
+vline!([mean(num_particles)], label="Promedio", color=:red)
+end
+
+# ╔═╡ 46487daa-4f3d-43e5-9898-83df4149fbf8
+# ╠═╡ disabled = true
+#=╠═╡
+savefig(h1, "./images/histograms/"*string(k)*"x"*string(k)*"_"*string(steps)*".png");
+  ╠═╡ =#
+
+# ╔═╡ 3720c160-9f59-47da-ad69-bb09860ff9c3
+Markdown.parse("""
+Obteniendo una cantidad de partículas promedio de `$cant` (redondeando hacia abajo). Es decir, el ≈`$por`% del número total de partículas.
+""")
+
+# ╔═╡ 2d839d89-e07a-4646-89df-a13fb4861a14
+md"Ahora, consideraremos muestras ajenas a las del primer ejercicio:"
+
+# ╔═╡ 893e4f03-94be-4ac4-91e4-a682d3356f7e
+md"Tomando $10000$ como tiempo final de la cadena, obtenemos el siguiente histograma:"
+
+# ╔═╡ 260a909f-4cbf-4dea-9683-0b2e191ebea0
+begin
+confs_10k = precompute(k, 10000, 37)
+par_nums_10k = Int[]
+for conf in confs_10k
+	push!(par_nums_10k, sum(conf))
+end
+prom_part_10k = mean(par_nums_10k)
+	
+cant1 = round(prom_part_10k, RoundDown)
+por1 = round(100*cant1/(k*k), sigdigits=4)
+	
+histogram(par_nums_10k, bins=maximum(par_nums_10k)-minimum(par_nums_10k), label="",
+          xlabel="Número de partículas", ylabel="Frecuencia", 
+          title="Número de partículas en una grilla $k x $k")
+vline!([prom_part_10k], label="Promedio", color=:red)
+end
+
+# ╔═╡ 62929933-3388-4531-876b-48ded1dc0fcf
+Markdown.parse("""
+Obteniendo una cantidad de partículas promedio de `$cant1` (redondeando hacia abajo). Es decir, el ≈`$por1`% del número total de partículas.
+""")
+
+# ╔═╡ db9850bf-da1e-4d7c-9d79-519acbfc0b5d
+md"Tomando $100000$ como tiempo final de la cadena, obtenemos el siguiente histograma:"
+
+# ╔═╡ 60fb3013-832e-426f-ae65-ebbb09e68dc3
+begin
+confs_100k = precompute(k, 100000, 123)
+par_nums_100k = Int[]
+for conf in confs_100k
+	push!(par_nums_100k, sum(conf))
+end
+prom_part_100k = mean(par_nums_100k)
+
+cant2 = round(prom_part_100k, RoundDown)
+por2 = round(100*cant2/(k*k), sigdigits=4)
+
+	
+h2 = histogram(par_nums_100k, bins=maximum(par_nums_100k)-minimum(par_nums_100k), label="",
+          xlabel="Número de partículas", ylabel="Frecuencia", 
+          title="Número de partículas en una grilla $k x $k")
+vline!([prom_part_100k], label="Promedio", color=:red)
+end
+
+# ╔═╡ f9eb2fc0-574b-4d26-aa8a-04f60abca472
+# ╠═╡ disabled = true
+#=╠═╡
+savefig(h2, "./images/histograms/"*string(k)*"x"*string(k)*"_"*string(100000)*".png");
+  ╠═╡ =#
+
+# ╔═╡ 88b5f3b4-d22c-4782-968a-526eb6138437
+Markdown.parse("""
+Obteniendo una cantidad de partículas promedio de `$cant2` (redondeando hacia abajo). Es decir, el ≈`$por2`% del número total de partículas.
+""")
+
+# ╔═╡ 5e28e419-e1ef-4b58-9109-5a653f8cb62f
+md"A continuación, consideraremos tiempos finales (número de iteraciones) distintos a $10000$ y $100000$; y mostraremos los resultados en una tabla. Cada tiempo final considerado se realizará con muestras distintas."
+
+# ╔═╡ 5d6a7423-f31a-4443-b6a1-333e12bf84c3
+begin
+iteraciones = [2^i for i in 5:20] 
+df = DataFrame(Iteraciones = Int[], Promedio_partículas = Float64[], Porcentaje_partículas = Float64[])
+
+porcentajes = Float64[]
+cantidades = Int[]
+	
+for iters in iteraciones
+	confs = precompute(k, iters, iters)
+	par_nums = Int[]
+	for conf in confs
+		push!(par_nums, sum(conf))
+	end
+	prom_part = round(mean(par_nums), RoundDown)
+	perc_part = round((prom_part/(k*k)) * 100, sigdigits=4)
+	push!(df, (Iteraciones = iters, Promedio_partículas = prom_part, Porcentaje_partículas = perc_part))
+	push!(porcentajes, perc_part)
+	push!(cantidades, prom_part)
+end
+	prom_por = round(porcentajes[16], sigdigits=2);
+	prom_can = round(mean(cantidades), RoundDown);
+end
+
+# ╔═╡ 25c629ef-dd48-4af0-91c8-158ab1fbf7f0
+md"Obteniendo:"
+
+# ╔═╡ dc8a4b0d-b6f4-4341-a1e6-6a66a0777544
+df
+
+# ╔═╡ dc62d133-62be-4ef8-a0a1-841042ba3afb
+Markdown.parse("""
+Concluimos que el porcentaje de partículas presente en la grilla oscilará al rededor del `$prom_por`% (con respecto al número total de celdas `$k` x `$k`) a medida que el número de iteraciones aumenta.
+""")
 
 # ╔═╡ d8ea92ca-6281-4b90-b54a-1c479cb0f5f2
 md"## Tercer Punto"
@@ -209,12 +353,14 @@ PlutoUI.TableOfContents(title="")
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 
 [compat]
+DataFrames = "~1.6.1"
 Distributions = "~0.25.107"
 Plots = "~1.40.2"
 PlutoUI = "~0.7.58"
@@ -226,7 +372,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.10.1"
 manifest_format = "2.0"
-project_hash = "da51eb5aee2df34b33641f7058dba29267f9e43f"
+project_hash = "46810ec7b7d3113e13d9265e99b8ec0ab3924060"
 
 [[deps.AbstractPlutoDingetjes]]
 deps = ["Pkg"]
@@ -327,16 +473,32 @@ git-tree-sha1 = "d05d9e7b7aedff4e5b51a029dced05cfb6125781"
 uuid = "d38c429a-6771-53c6-b99e-75d170b6e991"
 version = "0.6.2"
 
+[[deps.Crayons]]
+git-tree-sha1 = "249fe38abf76d48563e2f4556bebd215aa317e15"
+uuid = "a8cc5b0e-0ffa-5ad4-8c14-923d3ee1735f"
+version = "4.1.1"
+
 [[deps.DataAPI]]
 git-tree-sha1 = "abe83f3a2f1b857aac70ef8b269080af17764bbe"
 uuid = "9a962f9c-6df0-11e9-0e5d-c546b8b5ee8a"
 version = "1.16.0"
+
+[[deps.DataFrames]]
+deps = ["Compat", "DataAPI", "DataStructures", "Future", "InlineStrings", "InvertedIndices", "IteratorInterfaceExtensions", "LinearAlgebra", "Markdown", "Missings", "PooledArrays", "PrecompileTools", "PrettyTables", "Printf", "REPL", "Random", "Reexport", "SentinelArrays", "SortingAlgorithms", "Statistics", "TableTraits", "Tables", "Unicode"]
+git-tree-sha1 = "04c738083f29f86e62c8afc341f0967d8717bdb8"
+uuid = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+version = "1.6.1"
 
 [[deps.DataStructures]]
 deps = ["Compat", "InteractiveUtils", "OrderedCollections"]
 git-tree-sha1 = "0f4b5d62a88d8f59003e43c25a8a90de9eb76317"
 uuid = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 version = "0.18.18"
+
+[[deps.DataValueInterfaces]]
+git-tree-sha1 = "bfc1187b79289637fa0ef6d4436ebdfe6905cbd6"
+uuid = "e2d170a0-9d28-54be-80f0-106bbe20a464"
+version = "1.0.0"
 
 [[deps.Dates]]
 deps = ["Printf"]
@@ -455,6 +617,10 @@ git-tree-sha1 = "aa31987c2ba8704e23c6c8ba8a4f769d5d7e4f91"
 uuid = "559328eb-81f9-559d-9380-de523a88c83c"
 version = "1.0.10+0"
 
+[[deps.Future]]
+deps = ["Random"]
+uuid = "9fa8497b-333b-5362-9e8d-4d0656e87820"
+
 [[deps.GLFW_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Libglvnd_jll", "Xorg_libXcursor_jll", "Xorg_libXi_jll", "Xorg_libXinerama_jll", "Xorg_libXrandr_jll"]
 git-tree-sha1 = "ff38ba61beff76b8f4acad8ab0c97ef73bb670cb"
@@ -532,14 +698,30 @@ git-tree-sha1 = "8b72179abc660bfab5e28472e019392b97d0985c"
 uuid = "b5f81e59-6552-4d32-b1f0-c071b021bf89"
 version = "0.2.4"
 
+[[deps.InlineStrings]]
+deps = ["Parsers"]
+git-tree-sha1 = "9cc2baf75c6d09f9da536ddf58eb2f29dedaf461"
+uuid = "842dd82b-1e85-43dc-bf29-5d0ee9dffc48"
+version = "1.4.0"
+
 [[deps.InteractiveUtils]]
 deps = ["Markdown"]
 uuid = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
+
+[[deps.InvertedIndices]]
+git-tree-sha1 = "0dc7b50b8d436461be01300fd8cd45aa0274b038"
+uuid = "41ab1584-1d38-5bbf-9106-f11c6c58b48f"
+version = "1.3.0"
 
 [[deps.IrrationalConstants]]
 git-tree-sha1 = "630b497eafcc20001bba38a4651b327dcfc491d2"
 uuid = "92d709cd-6900-40b7-9082-c6be49f344b6"
 version = "0.2.2"
+
+[[deps.IteratorInterfaceExtensions]]
+git-tree-sha1 = "a3f24677c21f5bbe9d2a714f95dcd58337fb2856"
+uuid = "82899510-4779-5014-852e-03e436cf321d"
+version = "1.0.0"
 
 [[deps.JLFzf]]
 deps = ["Pipe", "REPL", "Random", "fzf_jll"]
@@ -882,6 +1064,12 @@ git-tree-sha1 = "71a22244e352aa8c5f0f2adde4150f62368a3f2e"
 uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 version = "0.7.58"
 
+[[deps.PooledArrays]]
+deps = ["DataAPI", "Future"]
+git-tree-sha1 = "36d8b4b899628fb92c2749eb488d884a926614d3"
+uuid = "2dfb63ee-cc39-5dd5-95bd-886bf059d720"
+version = "1.4.3"
+
 [[deps.PrecompileTools]]
 deps = ["Preferences"]
 git-tree-sha1 = "5aa36f7049a63a1528fe8f7c3f2113413ffd4e1f"
@@ -893,6 +1081,12 @@ deps = ["TOML"]
 git-tree-sha1 = "9306f6085165d270f7e3db02af26a400d580f5c6"
 uuid = "21216c6a-2e73-6563-6e65-726566657250"
 version = "1.4.3"
+
+[[deps.PrettyTables]]
+deps = ["Crayons", "LaTeXStrings", "Markdown", "PrecompileTools", "Printf", "Reexport", "StringManipulation", "Tables"]
+git-tree-sha1 = "88b895d13d53b5577fd53379d913b9ab9ac82660"
+uuid = "08abe8d2-0d0c-5749-adfa-8a2ac140af0d"
+version = "2.3.1"
 
 [[deps.Printf]]
 deps = ["Unicode"]
@@ -969,6 +1163,12 @@ git-tree-sha1 = "3bac05bc7e74a75fd9cba4295cde4045d9fe2386"
 uuid = "6c6a2e73-6563-6170-7368-637461726353"
 version = "1.2.1"
 
+[[deps.SentinelArrays]]
+deps = ["Dates", "Random"]
+git-tree-sha1 = "0e7508ff27ba32f26cd459474ca2ede1bc10991f"
+uuid = "91c51154-3ec4-41a3-a24f-3f23e20d615c"
+version = "1.4.1"
+
 [[deps.Serialization]]
 uuid = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
 
@@ -1040,6 +1240,12 @@ version = "1.3.1"
     ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
     InverseFunctions = "3587e190-3f89-42d0-90ee-14403ec27112"
 
+[[deps.StringManipulation]]
+deps = ["PrecompileTools"]
+git-tree-sha1 = "a04cabe79c5f01f4d723cc6704070ada0b9d46d5"
+uuid = "892a3eda-7b42-436c-8928-eab12a02cf0e"
+version = "0.3.4"
+
 [[deps.SuiteSparse]]
 deps = ["Libdl", "LinearAlgebra", "Serialization", "SparseArrays"]
 uuid = "4607b0f0-06f3-5cda-b6b1-a6196a1729e9"
@@ -1053,6 +1259,18 @@ version = "7.2.1+1"
 deps = ["Dates"]
 uuid = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 version = "1.0.3"
+
+[[deps.TableTraits]]
+deps = ["IteratorInterfaceExtensions"]
+git-tree-sha1 = "c06b2f539df1c6efa794486abfb6ed2022561a39"
+uuid = "3783bdb8-4a98-5b6b-af9a-565f29a5fe9c"
+version = "1.0.1"
+
+[[deps.Tables]]
+deps = ["DataAPI", "DataValueInterfaces", "IteratorInterfaceExtensions", "LinearAlgebra", "OrderedCollections", "TableTraits"]
+git-tree-sha1 = "cb76cf677714c095e535e3501ac7954732aeea2d"
+uuid = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
+version = "1.11.1"
 
 [[deps.Tar]]
 deps = ["ArgTools", "SHA"]
@@ -1449,6 +1667,26 @@ version = "1.4.1+1"
 # ╠═85a006b6-2e6f-4d78-8da9-758e5e727959
 # ╟─9e0c101e-7ed2-46fc-979f-2dec6f3502cb
 # ╟─7fbc57be-05cf-47d4-bf94-3e5acdefca54
+# ╟─74da9482-2e9f-47ce-8ddc-e2fb6e9443ef
+# ╠═eb6fbbba-2a73-491b-9186-26f0649fbd57
+# ╠═754fe2bc-f73f-4443-b2e3-e9fcf6df7268
+# ╟─7edee3e1-a2d8-4c94-a49c-41d16fcefb30
+# ╟─c168baa0-8768-4357-8efe-1d2d8c4c64e1
+# ╠═46487daa-4f3d-43e5-9898-83df4149fbf8
+# ╟─3720c160-9f59-47da-ad69-bb09860ff9c3
+# ╟─2d839d89-e07a-4646-89df-a13fb4861a14
+# ╟─893e4f03-94be-4ac4-91e4-a682d3356f7e
+# ╟─260a909f-4cbf-4dea-9683-0b2e191ebea0
+# ╟─62929933-3388-4531-876b-48ded1dc0fcf
+# ╟─db9850bf-da1e-4d7c-9d79-519acbfc0b5d
+# ╟─60fb3013-832e-426f-ae65-ebbb09e68dc3
+# ╠═f9eb2fc0-574b-4d26-aa8a-04f60abca472
+# ╟─88b5f3b4-d22c-4782-968a-526eb6138437
+# ╟─5e28e419-e1ef-4b58-9109-5a653f8cb62f
+# ╠═5d6a7423-f31a-4443-b6a1-333e12bf84c3
+# ╟─25c629ef-dd48-4af0-91c8-158ab1fbf7f0
+# ╟─dc8a4b0d-b6f4-4341-a1e6-6a66a0777544
+# ╟─dc62d133-62be-4ef8-a0a1-841042ba3afb
 # ╟─d8ea92ca-6281-4b90-b54a-1c479cb0f5f2
 # ╟─82a5934f-7ba1-435d-ad9f-ffa3b2b2e702
 # ╟─20d6e8f9-9b70-49b6-9081-dc509f506795
