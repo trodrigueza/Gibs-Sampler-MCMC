@@ -46,7 +46,7 @@ md"Primero definiremos la función `visualize` para graficar una configuración 
 # ╔═╡ df6fb99c-dc23-4f37-b926-1a02bbf4d5fc
 function visualize_conf(configuration)
 	k = size(configuration, 1)
-    plot(size=(k * 50, k * 50))
+    plot(size=(k * 40, k * 40))
     
     plot!(legend=false, xaxis=false, yaxis=false, grid=false)
     hline!(1:k, color=:black, alpha=0.5, linewidth=0.5)
@@ -275,8 +275,10 @@ end;
 md"A continuación realizamos un análisis más profundo, generamos varias cadenas disyuntas, calculamos el promedio de los tiempos mínimos en los que cada cadena llega a una configuración factible y adicionalmente guardamos el máximo de tales tiempos mínimos."
 
 # ╔═╡ 753c7328-290f-4616-a757-fd75c2154e8c
-begin
-	iterations_1 = [2^i for i in 3:15]
+# ╠═╡ disabled = true
+#=╠═╡
+begin # Este bloque puede tardar en ejecutarse, por esto lo deshabilitamos
+	iterations_1 = [2^i for i in 3:12]
 	t_proms = DataFrame(Cadenas_generadas = Int64[], Promedio_tiempos_mínimos = Float64[], Máximo_tiempos_mínimos = Int64[])
 	for i in iterations_1
 		prom_1, t_max = t_min(i)
@@ -284,6 +286,7 @@ begin
 	end
 	t_proms
 end
+  ╠═╡ =#
 
 # ╔═╡ 72899a0b-3edd-4a6a-bc98-abf8b08560ff
 md"Según el máximo de los tiempos mínimos, ¿es posible establecer una cota $c$ tal que, sin importar la configuración inicial, la cadena de Markov llegue a una configuración factible a lo sumo en el tiempo $c$?"
@@ -434,8 +437,11 @@ for iters in iteraciones
 	push!(porcentajes, perc_part)
 	push!(cantidades, prom_part)
 end
-	prom_por = round(last(porcentajes), sigdigits=2);
+	
 end
+
+# ╔═╡ bb465ddd-7544-46e0-bfcf-3878793a238b
+prom_por = round(last(porcentajes), sigdigits=2);
 
 # ╔═╡ 25c629ef-dd48-4af0-91c8-158ab1fbf7f0
 md"Obteniendo:"
@@ -2031,7 +2037,7 @@ version = "1.4.1+1"
 # ╠═d8dcd884-59cf-4109-8f52-b48595892372
 # ╟─45498cc9-1bd0-4fe3-839d-eeeb53f7af00
 # ╟─b875075e-2834-4abe-9270-bacbefe3a63e
-# ╟─753c7328-290f-4616-a757-fd75c2154e8c
+# ╠═753c7328-290f-4616-a757-fd75c2154e8c
 # ╟─72899a0b-3edd-4a6a-bc98-abf8b08560ff
 # ╟─9e0c101e-7ed2-46fc-979f-2dec6f3502cb
 # ╟─7fbc57be-05cf-47d4-bf94-3e5acdefca54
@@ -2052,6 +2058,7 @@ version = "1.4.1+1"
 # ╟─88b5f3b4-d22c-4782-968a-526eb6138437
 # ╟─5e28e419-e1ef-4b58-9109-5a653f8cb62f
 # ╟─5d6a7423-f31a-4443-b6a1-333e12bf84c3
+# ╟─bb465ddd-7544-46e0-bfcf-3878793a238b
 # ╟─25c629ef-dd48-4af0-91c8-158ab1fbf7f0
 # ╟─dc8a4b0d-b6f4-4341-a1e6-6a66a0777544
 # ╟─dc62d133-62be-4ef8-a0a1-841042ba3afb
@@ -2080,8 +2087,8 @@ version = "1.4.1+1"
 # ╟─87195d68-50b6-4346-8183-c79aedec9b88
 # ╠═afe83872-dc58-4a70-b4dd-d381b37f7e5f
 # ╟─16b223bd-9dfe-4d69-b2d3-6ce03eca5120
-# ╠═22170b40-05f8-49ae-9386-0268fc2d192f
-# ╠═20d6e8f9-9b70-49b6-9081-dc509f506795
+# ╟─22170b40-05f8-49ae-9386-0268fc2d192f
+# ╟─20d6e8f9-9b70-49b6-9081-dc509f506795
 # ╟─f9688f68-d6cd-4a18-aab9-3beb80848c4f
 # ╠═b773915d-7bed-46eb-9277-47128a346b99
 # ╟─d895b7ac-67d7-424a-b577-de74fbd9a735
