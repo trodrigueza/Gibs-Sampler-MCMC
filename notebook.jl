@@ -41,10 +41,10 @@ md"Implemente el algoritmo (Gibbs sampler) usado en clase para generar muestras 
 Lo ideal es que se puedan visualizar las muestras y algunos pasos de la trayectoria de la cadena de Markov que condujo a la muestra. (Sugerencia: tome $X_{10000}$ o $X_{100000}$ como tiempo final)."
 
 # ╔═╡ 1e96de02-f5fb-453d-98fe-eec48b9670b9
-md"Primero definiremos la función `visualize` para graficar una configuración dada. Note que el argumento que se pasa, `configuration`, es una matriz de $k\times k$."
+md"Primero definiremos la función `visualize` para graficar una configuración dada. Note que el argumento que se pasará, `configuration`, es una matriz de $k\times k$."
 
 # ╔═╡ df6fb99c-dc23-4f37-b926-1a02bbf4d5fc
-function visualize(configuration)
+function visualize_conf(configuration)
 	k = size(configuration, 1)
     plot(size=(k * 50, k * 50))
     
@@ -57,7 +57,6 @@ function visualize(configuration)
 			if configuration[i,j] == 1
 				scatter!([j], [k-i+1], color=:black, markersize=8)
 			else
-				
 				scatter!([j], [k-i+1], color=:white, markersize=8, markerstrokecolor=:black)
 			end
 		end
@@ -70,7 +69,7 @@ end;
 md"A continuación, definimos la función `feasible` que verifica si un cambio propuesto en la configuración es factible según las reglas del modelo, tomando la configuración actual y las posiciones $(i, j)$ del vértice a cambiar, e iterando sobre los vecinos de dicha posición para verificar si alguno ya tiene valor $1$."
 
 # ╔═╡ c9a5cea5-c208-4b31-a917-9a1b01389a1e
-function feasible(configuration, i, j)
+function feasible_conf(configuration, i, j)
 	neighbors = [(i-1, j), (i+1, j), (i, j-1), (i, j+1)]
 	for (ni, nj) in neighbors
 		if ni >= 1 && ni <= size(configuration, 1) && nj >= 1 && nj <= size(configuration, 2)
@@ -82,8 +81,11 @@ function feasible(configuration, i, j)
 	return true
 end;
 
+# ╔═╡ f8b1755c-dd19-4dbd-9bfe-06f54e299a50
+md"Adicionalmente, definimos la función `valid_conf` para verificar si en general una configuración dada es factible."
+
 # ╔═╡ 6a26e2ac-7705-4030-9dda-08e5bbf55a12
-md"Ahora implementaremos el algoritmo de Gibb Sampler mediante la función `gibbs`. 
+md"Ahora implementaremos el algoritmo de Gibb Sampler para el modelo hard-core mediante la función `hc_gibb`. 
 
 El algoritmo es el siguiente: en cada tiempo entero $n+1$, hacemos lo siguiente:
 1. Elegir un vértice $v\in V$ al azar (uniformemente).
@@ -92,11 +94,11 @@ El algoritmo es el siguiente: en cada tiempo entero $n+1$, hacemos lo siguiente:
 4. Para todos los vértices $w\in V$ ($w\neq v$), $X_{n+1}(w)=X_{n}(w)$."
 
 # ╔═╡ df692ce9-6963-4c75-a771-14b220dd2d6b
-function gibbs!(configuration)
+function hc_gibb!(configuration)
 	n = size(configuration, 1)
 	i, j = rand(1:n), rand(1:n)
 	if rand(Bernoulli(0.5)) == 1 # simular lanzamiento de moneda
-		if feasible(configuration, i, j)
+		if feasible_conf(configuration, i, j)
 			configuration[i, j] = 1
 		end
 	else
@@ -104,34 +106,38 @@ function gibbs!(configuration)
 	end
 end;
 
-# ╔═╡ 534782bd-3343-4ada-87c1-cdae9f3201f2
-# Correr el Gibbs Sampler
-function run_gibbs(k, iterations, steps)
-	Random.seed!(123) # para repetir el experimento con las mismas condiciones
-	configuration = zeros(Int, k, k)
-	frames = []
-	
-	for i in 1:iterations
-		gibbs!(configuration)
-		if i in steps
-			push!(frames, visualize(configuration))
+# ╔═╡ 921a739f-afbf-4ee9-be44-796fa580b98f
+md"Finalmente, definimos la función `precompute` para correr el Gibb Sampler y guardar las configuraciones generadas para posteriormente poder visualizar la cadena de Markov. Partiremos con una configuración inical aleatoria que puede ser factible o no, generada por la función `gen_config`. Note que podríamos partir de la configuración en la que todas las celdas están apagadas, lo cual es válido pues se probó que la cadena generada por este algoritmo para este modelo en particular es irreducible, aperiódica y reversible."
+
+# ╔═╡ d39cb47f-b883-43ed-984b-0c11072f50a2
+function gen_config(k)
+	config = Array{Int}(undef, k, k)
+	for i in 1:k
+		for j in 1:k
+			if rand(Bernoulli(0.5)) == 1
+				config[i, j] = 1
+			else
+				config[i, j] = 0
+			end
 		end
 	end
-	return configuration, frames
-end
-
-# ╔═╡ 921a739f-afbf-4ee9-be44-796fa580b98f
-md"Finalmente, definimos la función `precompute` para correr el Gibb Sampler y guardar las configuraciones generadas para posteriormente poder visualizar la cadena de Markov. Partiremos con una configuración inical en la que todas las celdas están apagadas, lo cual es válido pues se probó que la cadena generada por este algoritmo para este modelo en particular es irreducible, aperiódica y reversible."
+	config
+end;
 
 # ╔═╡ 5748c8a5-37c8-4faa-a91f-dec19237db4a
-function precompute(k, total_steps, seed)
+function precompute(k, total_steps, seed, z=nothing)
 	Random.seed!(seed) # Para repetir el experimento con las mismas condiciones
     configurations = []
-    config = zeros(Int, k, k) # Configuración inicial
+	flag = 0
+    if(z != nothing)
+		config = zeros(Int, k, k) # Configuración inicial vacia
+	else
+		config = gen_config(k) # Configuración inicial aleatoria
+	end
 
     for step in 1:total_steps
-        gibbs!(config)
-        push!(configurations, copy(config)) # Guardar la configuración
+        hc_gibb!(config)
+		push!(configurations, copy(config)) # Guardar la configuración
     end
 
     configurations
@@ -141,10 +147,24 @@ end;
 md"A continuación, establecemos los parámetros."
 
 # ╔═╡ 7d595123-a942-47ac-85d0-abd7b437ea78
-md"Tamaño de la grilla $k$:"
+md"Tamaño de la grilla $k\times k$:"
 
 # ╔═╡ 83dede68-1bbd-433e-8b9d-70c865b6a0d5
 @bind k Slider(3:20, show_value=true, default=8)
+
+# ╔═╡ 9f4fe13e-7287-43d5-9325-3a6d3e2b1402
+function valid_conf(configuration)
+	for i in 1:k
+		for j in 1:k
+			if (configuration[i, j] == 1)
+				if feasible_conf(configuration, i, j) == false
+					return false
+				end
+			end
+		end
+	end
+	return true
+end;
 
 # ╔═╡ 095d3bd7-2cb9-409f-bb68-b68d541bfc6d
 k
@@ -160,23 +180,29 @@ end
 # ╔═╡ 38434598-cf71-4c06-9dc6-bb46c2b8d996
 steps
 
+# ╔═╡ 7233979b-86c8-48a8-900a-3d10dd2ab03e
+Markdown.parse("""
+Generamos las configuraciones según los parámetros k=`$k` y steps=`$steps`.
+""")
+
 # ╔═╡ 09cfde5f-a644-4fa7-b7fa-5fb4beb394ba
 configurations = precompute(k, steps, 73); # corremos la cadena
 
 # ╔═╡ abcf1697-430b-48c8-8851-0acb6aab6c68
-md"Obteniendo la siguiente visualización de las configuraciones obtenidas en cada tiempo $t$:
+md"Obteniendo la siguiente visualización de las configuraciones obtenidas en cada tiempo $t$ ($1\leq t \leq steps$):
 
 Nota: Si el valor de $t$ llega al valor de $steps$ reinicie el reloj. Para visualizar mediante un slider, edite la celda de abajo, descomente la línea 1 y comente la línea 2. "
 
 # ╔═╡ 88e56f5e-e737-4845-b334-a36e344afb3e
 @bind t Slider(1:steps, show_value=true)
 #@bind t Clock(0.1, true)
+#@bind t NumberField(1:steps)
 
 # ╔═╡ 06f3008b-e221-443d-af27-db5e471cf777
 t
 
 # ╔═╡ cd721211-5e8c-482e-a241-a70d8ca5e1a6
-visualize(configurations[t])
+visualize_conf(configurations[t])
 
 # ╔═╡ 20b1ee19-0688-4a04-b097-78717935fd21
 md"Salvaremos algunas de estas configuraciones para adjuntar en el repositorio."
@@ -186,17 +212,81 @@ md"Salvaremos algunas de estas configuraciones para adjuntar en el repositorio."
 # ╠═╡ skip_as_script = true
 #=╠═╡
 for i in 1:3:50
-	savefig(visualize(configurations[i]), "./images/hard-core-configurations/X_"*string(i)*".png")
+	savefig(visualize_conf(configurations[i]), "./images/hard-core-configurations/X_"*string(i)*".png")
 end
   ╠═╡ =#
 
 # ╔═╡ 85a006b6-2e6f-4d78-8da9-758e5e727959
 # ╠═╡ disabled = true
+# ╠═╡ skip_as_script = true
 #=╠═╡
 for i in 1:Int(steps/20):steps
-	savefig(visualize(configurations[i]), "./images/hard-core-configurations/X_"*string(i)*".png")
+	savefig(visualize_conf(configurations[i]), "./images/hard-core-configurations/X_"*string(i)*".png")
 end
   ╠═╡ =#
+
+# ╔═╡ b73ff478-6003-4c6f-b33c-c8facb30b2b2
+md"En este punto, podemos analizar el tiempo mínimo en el que la cadena llega a una configuración factible partiendo desde una configuración inicial aleatoria. A continuación, generamos 10 cadenas disyuntas y anotamos dicho tiempo mínimo."
+
+# ╔═╡ d8dcd884-59cf-4109-8f52-b48595892372
+begin
+iteraciones1 = 10
+tiempo_minimo = DataFrame(Tiempo_mínimo = Int64[])
+	
+for i in 1:iteraciones1
+	confs = precompute(k, steps, i) # Cada cadena generada se hace con una semilla distinta (i)
+	num_particles1 = Int[]
+	t_m = 0
+	for config in confs
+		t_m += 1
+		if valid_conf(config)
+			@goto found
+		end
+	end
+	@label found
+	push!(tiempo_minimo, [t_m])
+end
+	tiempo_minimo
+end
+
+# ╔═╡ 45498cc9-1bd0-4fe3-839d-eeeb53f7af00
+function t_min(iteraciones)
+	t_mins = Int[]
+	t_max = 0
+	for i in 1:iteraciones
+		confs = precompute(k, 2000, i*37+iteraciones) # Cada cadena generada se hace con una semilla distinta (i*37+iteraciones)
+		t_m = 0
+		for config in confs
+			t_m += 1
+			if valid_conf(config)
+				if (t_m > t_max) 
+					t_max = t_m
+				end
+				push!(t_mins, t_m)
+				@goto found
+			end
+		end
+		@label found
+	end
+	return mean(t_mins), t_max
+end;
+
+# ╔═╡ b875075e-2834-4abe-9270-bacbefe3a63e
+md"A continuación realizamos un análisis más profundo, generamos varias cadenas disyuntas, calculamos el promedio de los tiempos mínimos en los que cada cadena llega a una configuración factible y adicionalmente guardamos el máximo de tales tiempos mínimos."
+
+# ╔═╡ 753c7328-290f-4616-a757-fd75c2154e8c
+begin
+	iterations_1 = [2^i for i in 3:15]
+	t_proms = DataFrame(Cadenas_generadas = Int64[], Promedio_tiempos_mínimos = Float64[], Máximo_tiempos_mínimos = Int64[])
+	for i in iterations_1
+		prom_1, t_max = t_min(i)
+		push!(t_proms, (Cadenas_generadas = i, Promedio_tiempos_mínimos = prom_1, Máximo_tiempos_mínimos = t_max))
+	end
+	t_proms
+end
+
+# ╔═╡ 72899a0b-3edd-4a6a-bc98-abf8b08560ff
+md"Según el máximo de los tiempos mínimos, ¿es posible establecer una cota $c$ tal que, sin importar la configuración inicial, la cadena de Markov llegue a una configuración factible a lo sumo en el tiempo $c$?"
 
 # ╔═╡ 9e0c101e-7ed2-46fc-979f-2dec6f3502cb
 md"## Segundo Punto"
@@ -206,15 +296,19 @@ md"Usar muestras generadas con lo hecho en el ejercicio anterior para estimar el
 De hecho, lo ideal sería hacer un histograma. Verificar cómo cambia el histograma si en lo hecho en el primer punto se toman en vez de $X_{10000}$ o $X_{100000}$, otros tiempos de la cadena $\{X_t\}$."
 
 # ╔═╡ 74da9482-2e9f-47ce-8ddc-e2fb6e9443ef
-md"Por cada muestra generada en el primer ejercicio, contaremos el número de partículas y lo almacenaremos el arreglo `num_particles` para posteriormente visualizar la frecuencia de dichas cantidades en un histograma."
+md"Por cada muestra factible generada en el primer ejercicio, contaremos el número de partículas y lo almacenaremos en el arreglo `num_particles` para posteriormente visualizar la frecuencia de dichas cantidades en un histograma."
 
 # ╔═╡ eb6fbbba-2a73-491b-9186-26f0649fbd57
 num_particles = Int[]; # Si se cambia el valor de k o de steps, correr esta línea de nuevo para actualizar el histograma
 
-# ╔═╡ 754fe2bc-f73f-4443-b2e3-e9fcf6df7268
+# ╔═╡ aae9c289-db4b-4ce1-a3fa-a314805b579e
 for config in configurations
-	num = sum(config)
-	push!(num_particles, num)
+	flag = 0
+	if (flag == 1 || valid_conf(config))
+		flag = 1
+		num = sum(config)
+		push!(num_particles, num)
+	end
 end
 
 # ╔═╡ 7edee3e1-a2d8-4c94-a49c-41d16fcefb30
@@ -232,13 +326,14 @@ end
 
 # ╔═╡ 46487daa-4f3d-43e5-9898-83df4149fbf8
 # ╠═╡ disabled = true
+# ╠═╡ skip_as_script = true
 #=╠═╡
 savefig(h1, "./images/histograms/"*string(k)*"x"*string(k)*"_"*string(steps)*".png");
   ╠═╡ =#
 
 # ╔═╡ 3720c160-9f59-47da-ad69-bb09860ff9c3
 Markdown.parse("""
-Obteniendo una cantidad de partículas promedio de `$cant` (redondeando hacia abajo). Es decir, el ≈`$por`% del número total de partículas.
+Obteniendo una cantidad de partículas promedio de `$cant` (redondeando hacia abajo). Es decir, el ≈`$por`% del número total de celdas disponibles en la grilla (`$k`x`$k`).
 """)
 
 # ╔═╡ 2d839d89-e07a-4646-89df-a13fb4861a14
@@ -249,10 +344,14 @@ md"Tomando $10000$ como tiempo final de la cadena, obtenemos el siguiente histog
 
 # ╔═╡ 260a909f-4cbf-4dea-9683-0b2e191ebea0
 begin
-confs_10k = precompute(k, 10000, 37)
+confs_10k = precompute(k, 10000, 43) # semilla = 43
 par_nums_10k = Int[]
+flag1 = 0
 for conf in confs_10k
-	push!(par_nums_10k, sum(conf))
+	if (flag1 == 1 || valid_conf(conf))
+		flag1 = 1
+		push!(par_nums_10k, sum(conf))
+	end
 end
 prom_part_10k = mean(par_nums_10k)
 	
@@ -267,7 +366,7 @@ end
 
 # ╔═╡ 62929933-3388-4531-876b-48ded1dc0fcf
 Markdown.parse("""
-Obteniendo una cantidad de partículas promedio de `$cant1` (redondeando hacia abajo). Es decir, el ≈`$por1`% del número total de partículas.
+Obteniendo una cantidad de partículas promedio de `$cant1` (redondeando hacia abajo). Es decir, el ≈`$por1`% del número total de celdas disponibles en la grilla (`$k`x`$k`).
 """)
 
 # ╔═╡ db9850bf-da1e-4d7c-9d79-519acbfc0b5d
@@ -275,10 +374,14 @@ md"Tomando $100000$ como tiempo final de la cadena, obtenemos el siguiente histo
 
 # ╔═╡ 60fb3013-832e-426f-ae65-ebbb09e68dc3
 begin
-confs_100k = precompute(k, 100000, 123)
+confs_100k = precompute(k, 100000, 123) # semilla = 123
 par_nums_100k = Int[]
+flag = 0
 for conf in confs_100k
-	push!(par_nums_100k, sum(conf))
+	if (flag == 1 || valid_conf(conf))
+		flag = 1
+		push!(par_nums_100k, sum(conf))
+	end
 end
 prom_part_100k = mean(par_nums_100k)
 
@@ -294,40 +397,44 @@ end
 
 # ╔═╡ f9eb2fc0-574b-4d26-aa8a-04f60abca472
 # ╠═╡ disabled = true
+# ╠═╡ skip_as_script = true
 #=╠═╡
 savefig(h2, "./images/histograms/"*string(k)*"x"*string(k)*"_"*string(100000)*".png");
   ╠═╡ =#
 
 # ╔═╡ 88b5f3b4-d22c-4782-968a-526eb6138437
 Markdown.parse("""
-Obteniendo una cantidad de partículas promedio de `$cant2` (redondeando hacia abajo). Es decir, el ≈`$por2`% del número total de partículas.
+Obteniendo una cantidad de partículas promedio de `$cant2` (redondeando hacia abajo). Es decir, el ≈`$por2`% del número total de celdas disponibles en la grilla (`$k`x`$k`).
 """)
 
 # ╔═╡ 5e28e419-e1ef-4b58-9109-5a653f8cb62f
-md"A continuación, consideraremos tiempos finales (número de iteraciones) distintos a $10000$ y $100000$; y mostraremos los resultados en una tabla. Cada tiempo final considerado se realizará con muestras distintas."
+md"A continuación, consideraremos tiempos finales (número de iteraciones) distintos a $10000$ y $100000$; y mostraremos los resultados en una tabla. Cada tiempo final considerado se realizará con muestras distintas (cadenas disyuntas). En este caso, cada cadena comenzará con una configuración inicial en la que todas las celdas están vacías."
 
 # ╔═╡ 5d6a7423-f31a-4443-b6a1-333e12bf84c3
 begin
-iteraciones = [2^i for i in 5:20] 
-df = DataFrame(Iteraciones = Int[], Promedio_partículas = Float64[], Porcentaje_partículas = Float64[])
+iteraciones = [2^i for i in 3:20] 
+df = DataFrame(Iteraciones = Int[], Promedio_partículas = Int64[], Porcentaje_partículas = Float64[])
 
 porcentajes = Float64[]
 cantidades = Int[]
 	
 for iters in iteraciones
-	confs = precompute(k, iters, iters)
+	confs = precompute(k, iters, iters, 1) # semilla = iters
 	par_nums = Int[]
+	flag = 0
 	for conf in confs
-		push!(par_nums, sum(conf))
+		if (flag == 1 || valid_conf(conf))
+			flag = 1
+			push!(par_nums, sum(conf))
+		end
 	end
-	prom_part = round(mean(par_nums), RoundDown)
+	prom_part = floor(mean(par_nums))
 	perc_part = round((prom_part/(k*k)) * 100, sigdigits=4)
 	push!(df, (Iteraciones = iters, Promedio_partículas = prom_part, Porcentaje_partículas = perc_part))
 	push!(porcentajes, perc_part)
 	push!(cantidades, prom_part)
 end
-	prom_por = round(porcentajes[16], sigdigits=2);
-	prom_can = round(mean(cantidades), RoundDown);
+	prom_por = round(last(porcentajes), sigdigits=2);
 end
 
 # ╔═╡ 25c629ef-dd48-4af0-91c8-158ab1fbf7f0
@@ -344,11 +451,263 @@ Concluimos que el porcentaje de partículas presente en la grilla oscilará al r
 # ╔═╡ d8ea92ca-6281-4b90-b54a-1c479cb0f5f2
 md"## Tercer Punto"
 
-# ╔═╡ 82a5934f-7ba1-435d-ad9f-ffa3b2b2e702
+# ╔═╡ 42c58e86-9449-4997-9a93-61870cb9d251
 md"Replicar lo hecho en el primer punto para $q-$coloraciones. ($2\leq q\leq 10, 3\leq k \leq 20$)."
 
+# ╔═╡ 863f2c96-32ca-435a-b0d6-9f3b6e566870
+md"Modificaremos sutilmente las funciones del primer ejercicio:"
+
+# ╔═╡ 641dd88b-23a1-4f16-a492-19dbcc256e8b
+md"Para visualizar una $q$-coloración:"
+
+# ╔═╡ 928d6171-3396-4d26-8941-53027123b873
+function visualize_coloration(coloration, q)
+	colors = Plots.palette(:viridis, q)
+	k = size(coloration, 1)
+    plot(size=(k * 50, k * 50))
+    
+    plot!(legend=false, xaxis=false, yaxis=false, grid=false)
+    hline!(1:k, color=:black, alpha=0.5, linewidth=0.5)
+    vline!(1:k, color=:black, alpha=0.5, linewidth=0.5)
+
+    for i in 1:k
+		for j in 1:k
+			scatter!([j], [k-i+1], color=colors[coloration[i, j]+1], markersize=8)
+		end
+	end
+    
+    current() 
+end;
+
+# ╔═╡ f630922d-e981-4948-9aaf-83371a6b4b90
+md"Para generar una coloración aleatoria:"
+
+# ╔═╡ 12f472c3-9126-4877-802f-ab68f103f3b1
+function gen_coloration(k, q)
+	config = Array{Int}(undef, k, k)
+	for i in 1:k
+		for j in 1:k
+			config[i, j] = rand(0:q-1) # color aleatorio [0, 1, ..., q-1]
+		end
+	end
+	config
+end;
+
+# ╔═╡ 99fdfb03-1af4-41e2-83b9-4bebeca74e96
+md"Para verificar si se puede o no colorear el vértice (`i`,`j`) con el color `color`."
+
+# ╔═╡ de296574-c8ea-400a-9d94-da78094570ea
+function feasible_coloration(coloration, i, j, color)
+	neighbors = [(i-1, j), (i+1, j), (i, j-1), (i, j+1)]
+	for (ni, nj) in neighbors
+		if ni >= 1 && ni <= size(coloration, 1) && nj >= 1 && nj <= size(coloration, 2)
+			if coloration[ni, nj] == color
+				return false
+			end
+		end
+	end
+	return true
+end;
+
+# ╔═╡ 33df57e7-e246-42ea-b909-fddd09e85b34
+md"Para verificar si una coloración es q-coloración:"
+
+# ╔═╡ 54d9d3b3-4bc0-41bb-b838-574ee48848ba
+function valid_coloration(coloration, k)
+	for i in 1:k
+		for j in 1:k
+			if feasible_coloration(coloration, i, j, coloration[i, j]) == false
+				return false
+			end
+		end
+	end
+	return true
+end;
+
+# ╔═╡ ccf0ffc9-9963-45d6-be4d-abb7f8360b26
+md"Implementación del Gibb Sampler para el caso de $q$-coloración:"
+
+# ╔═╡ 4bfa2623-b78b-4154-a6a2-1d29b6f0facc
+function col_gibbs!(coloration, q)
+	n = size(coloration, 1)
+	i, j = rand(1:n), rand(1:n)
+	color = rand(0:q-1)
+	if feasible_coloration(coloration, i, j, color)
+		coloration[i, j] = color
+	end
+end;
+
+# ╔═╡ e64e54a6-88a9-4261-adb6-307954118ed4
+md"Para correr la cadena:"
+
+# ╔═╡ 4d77250e-731f-45a8-8857-8e1e009d603b
+function precompute_colorations(k, q, total_steps, seed, z = nothing)
+	Random.seed!(seed) # Para repetir el experimento con las mismas condiciones
+    configurations = []
+	if (z != nothing)
+		config = zeros(Int, k, k)
+	else
+		config = gen_coloration(k, q)
+	end
+
+    for step in 1:total_steps
+        col_gibbs!(config, q)
+        push!(configurations, copy(config)) # Guardar la configuración
+    end
+
+    configurations
+end;
+
+# ╔═╡ 225d07c8-ebab-403a-aa50-00bb42ea3522
+md"A continuación establecemos los parámetros para la $q$-coloración en una grilla de tamaño $k\times k$. Primero consideraremos $4 \leq q \leq 10$."
+
+# ╔═╡ 07e23d0b-2d12-4cff-9e7b-320216b246ee
+@bind k_ Slider(3:20, show_value=true)
+
+# ╔═╡ 4552e0b9-8fba-4f33-a33d-9c50572a7d10
+k_
+
+# ╔═╡ 69497b83-da6a-455a-a5ed-1e6d828722aa
+@bind q_ Slider(4:10, show_value=true)
+
+# ╔═╡ ef33ae25-bf5b-45a8-b31c-e70c83952345
+q_
+
+# ╔═╡ d913bbcd-7baf-43c6-8153-4d71777951ce
+@bind steps_ Select([10000, 100000, 1000000])
+
+# ╔═╡ bab2f964-0b54-4a51-ba1e-99ce1c6ec9c4
+steps_
+
+# ╔═╡ 87195d68-50b6-4346-8183-c79aedec9b88
+md"Corremos la cadena"
+
+# ╔═╡ afe83872-dc58-4a70-b4dd-d381b37f7e5f
+colorations = precompute_colorations(k_, q_, steps_, 37);
+
+# ╔═╡ 16b223bd-9dfe-4d69-b2d3-6ce03eca5120
+md"Obteniendo la siguiente visualización:"
+
+# ╔═╡ 22170b40-05f8-49ae-9386-0268fc2d192f
+@bind t_ Slider(1:steps_, show_value=true)
+#@bind t_ Clock(0.1, true)
+#@bind t_ NumberField(1:steps_)
+
 # ╔═╡ 20d6e8f9-9b70-49b6-9081-dc509f506795
-PlutoUI.TableOfContents(title="")
+visualize_coloration(colorations[t_], q_)
+
+# ╔═╡ f9688f68-d6cd-4a18-aab9-3beb80848c4f
+md"Verifiquemos que se llega a una $q$-coloración:"
+
+# ╔═╡ b773915d-7bed-46eb-9277-47128a346b99
+valid_coloration(last(colorations), k_)
+
+# ╔═╡ d895b7ac-67d7-424a-b577-de74fbd9a735
+Markdown.parse("""
+Encontremos el tiempo mínimo en el que se obtiene una $q_-coloración:
+""")
+
+# ╔═╡ ae083570-8d89-41ee-a2a0-1a73cea63037
+function num_valid(colorations, k)
+	for i in 1:steps_
+		if valid_coloration(colorations[i], k)
+			return i
+		end
+	end
+end;
+
+# ╔═╡ a1ae3b64-e4aa-4835-a1a4-3b14a4a1c9c7
+num_valid(colorations, k_)
+
+# ╔═╡ a13aa1b2-c2e2-4ce8-aaad-6a18346c34a8
+# ╠═╡ disabled = true
+# ╠═╡ skip_as_script = true
+#=╠═╡
+savefig(visualize_coloration(colorations[8922], q_), "./images/colorations/"*string(k_)*"x"*string(k_)*"_"*string(q_)*"_8922.png");
+  ╠═╡ =#
+
+# ╔═╡ f601491c-da58-4e7e-b7ab-9a9ca109aae7
+# ╠═╡ disabled = true
+# ╠═╡ skip_as_script = true
+#=╠═╡
+savefig(visualize_coloration(colorations[8923], q_), "./images/colorations/"*string(k_)*"x"*string(k_)*"_"*string(q_)*"_8923.png");
+  ╠═╡ =#
+
+# ╔═╡ b154e07a-2bd4-426a-ab10-2da986304503
+md"A continuación, generaremos cadenas disyuntas para $3\leq k \leq 20$ y anotaremos el tiempo mínimo en el que cada cadena llega a una configuración factible."
+
+# ╔═╡ 488b21ad-c032-4bb6-9f13-dca382134254
+begin
+df3 = DataFrame(k=Int64[], Tiempo_minimo=Int64[])
+for size in 3:20
+	cols = precompute_colorations(size, q_, 15000, size)
+	ts = num_valid(cols, size)
+	push!(df3, (size, ts))
+end
+df3
+end
+
+# ╔═╡ 8871b0e3-0a02-4516-80c8-fb741d730eb0
+Markdown.parse("""A priori, este valor depende de la coloración inicial, note que en este caso la cadena generada para k=`$k_` llega a una q-coloración en un tiempo distinto al de la cadena generada en el ejemplo inicial (también de k=`$k_`)""")
+
+# ╔═╡ 6aab0ee0-d6bf-47f6-abbf-870bab6e2385
+md"Los casos $q=2$ y $q=3$ son especiales pues, dependiendo de la configuración inicial es posible llegar a una clase recurrente cuyas coloraciones no son una $q$-coloración. Veamos un ejemplo:"
+
+# ╔═╡ 31e405ce-1eca-4458-9615-d142cf872e38
+cols_3 = precompute_colorations(8, 3, 100000, 301); # Semilla=301
+
+# ╔═╡ fa80e92c-123b-4338-848e-e504897d64cf
+@bind t_3 Slider(1:100000, show_value=true)
+
+# ╔═╡ 45e59e94-e174-4112-98e3-84e30701bec4
+t_3
+
+# ╔═╡ 659996e3-3f72-4cf9-89a0-004285cc321e
+visualize_coloration(cols_3[t_3], 3)
+
+# ╔═╡ 21e97b17-8e7b-4f7d-8ad6-9b3f56f0c57a
+# ╠═╡ disabled = true
+# ╠═╡ skip_as_script = true
+#=╠═╡
+savefig(visualize_coloration(cols_3[731], 3), "./images/colorations/"*string(k_)*"x"*string(k_)*"_not"*string(3)*".png");
+  ╠═╡ =#
+
+# ╔═╡ 36651fa6-8bb1-4eca-8de8-93fe8d55eff0
+md"Veamos que no se llega a una 3-coloración:"
+
+# ╔═╡ 52dff1a0-7f79-4188-aaa6-25a563d40748
+valid_coloration(last(cols_3), 8)
+
+# ╔═╡ 71b13205-5459-47c7-bf1f-30b1ca2fdac3
+md"Observe que no hay forma de pasar de la clase a la que se llegó a una $q$-coloración, pues muchos de los vértices quedaron determinados a estar con el correspondiente color."
+
+# ╔═╡ d4f6f713-a684-4dcb-80b0-2021b3d5902d
+md"Veamos un ejemplo en el que se llega a una $3-coloración válida."
+
+# ╔═╡ 67354b57-ad30-4791-942e-3ed62e9e3571
+cols_3_ = precompute_colorations(8, 3, 100000, 129); # Semilla=129
+
+# ╔═╡ 38941b87-1e84-4345-96fa-3bc1eb9b017b
+@bind t_3_ Slider(1:100000, show_value=true)
+
+# ╔═╡ 271584dc-9617-44d2-9993-84c4aeab11c9
+t_3_
+
+# ╔═╡ 47605488-5844-493c-9a69-f4e4bffa4a57
+visualize_coloration(cols_3_[t_3_], 3)
+
+# ╔═╡ 915b2a97-377b-415b-a12a-dcd62167ac12
+# ╠═╡ disabled = true
+# ╠═╡ skip_as_script = true
+#=╠═╡
+savefig(visualize_coloration(cols_3[731], 3), "./images/colorations/"*string(k_)*"x"*string(k_)*"_"*string(3)*".png");
+  ╠═╡ =#
+
+# ╔═╡ c48d0ca0-f847-4fc5-9e65-7d2d82cb4e47
+md"Veamos que es una $3$-coloración:"
+
+# ╔═╡ a75397ea-94df-44c7-b65e-3cc2a3b499bd
+valid_coloration(last(cols_3_), 8)
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1645,10 +2004,12 @@ version = "1.4.1+1"
 # ╠═df6fb99c-dc23-4f37-b926-1a02bbf4d5fc
 # ╟─27d9d2da-1995-4bc6-9ec3-e4229a6eb71b
 # ╠═c9a5cea5-c208-4b31-a917-9a1b01389a1e
+# ╟─f8b1755c-dd19-4dbd-9bfe-06f54e299a50
+# ╠═9f4fe13e-7287-43d5-9325-3a6d3e2b1402
 # ╟─6a26e2ac-7705-4030-9dda-08e5bbf55a12
 # ╠═df692ce9-6963-4c75-a771-14b220dd2d6b
-# ╟─534782bd-3343-4ada-87c1-cdae9f3201f2
 # ╟─921a739f-afbf-4ee9-be44-796fa580b98f
+# ╠═d39cb47f-b883-43ed-984b-0c11072f50a2
 # ╠═5748c8a5-37c8-4faa-a91f-dec19237db4a
 # ╟─90dda47b-2360-44f2-94fb-3f4758fdcf47
 # ╟─7d595123-a942-47ac-85d0-abd7b437ea78
@@ -1657,19 +2018,26 @@ version = "1.4.1+1"
 # ╟─74733451-fa7f-43cc-ab54-b0e2784c0713
 # ╟─57df806a-15bb-4ac4-9cad-cfc37e435867
 # ╠═38434598-cf71-4c06-9dc6-bb46c2b8d996
+# ╟─7233979b-86c8-48a8-900a-3d10dd2ab03e
 # ╠═09cfde5f-a644-4fa7-b7fa-5fb4beb394ba
 # ╟─abcf1697-430b-48c8-8851-0acb6aab6c68
 # ╠═88e56f5e-e737-4845-b334-a36e344afb3e
 # ╠═06f3008b-e221-443d-af27-db5e471cf777
-# ╟─cd721211-5e8c-482e-a241-a70d8ca5e1a6
+# ╠═cd721211-5e8c-482e-a241-a70d8ca5e1a6
 # ╟─20b1ee19-0688-4a04-b097-78717935fd21
 # ╠═b065f05b-dcc2-4bc1-be9d-90d4aa971dd3
 # ╠═85a006b6-2e6f-4d78-8da9-758e5e727959
+# ╟─b73ff478-6003-4c6f-b33c-c8facb30b2b2
+# ╠═d8dcd884-59cf-4109-8f52-b48595892372
+# ╟─45498cc9-1bd0-4fe3-839d-eeeb53f7af00
+# ╟─b875075e-2834-4abe-9270-bacbefe3a63e
+# ╟─753c7328-290f-4616-a757-fd75c2154e8c
+# ╟─72899a0b-3edd-4a6a-bc98-abf8b08560ff
 # ╟─9e0c101e-7ed2-46fc-979f-2dec6f3502cb
 # ╟─7fbc57be-05cf-47d4-bf94-3e5acdefca54
 # ╟─74da9482-2e9f-47ce-8ddc-e2fb6e9443ef
 # ╠═eb6fbbba-2a73-491b-9186-26f0649fbd57
-# ╠═754fe2bc-f73f-4443-b2e3-e9fcf6df7268
+# ╠═aae9c289-db4b-4ce1-a3fa-a314805b579e
 # ╟─7edee3e1-a2d8-4c94-a49c-41d16fcefb30
 # ╟─c168baa0-8768-4357-8efe-1d2d8c4c64e1
 # ╠═46487daa-4f3d-43e5-9898-83df4149fbf8
@@ -1683,12 +2051,63 @@ version = "1.4.1+1"
 # ╠═f9eb2fc0-574b-4d26-aa8a-04f60abca472
 # ╟─88b5f3b4-d22c-4782-968a-526eb6138437
 # ╟─5e28e419-e1ef-4b58-9109-5a653f8cb62f
-# ╠═5d6a7423-f31a-4443-b6a1-333e12bf84c3
+# ╟─5d6a7423-f31a-4443-b6a1-333e12bf84c3
 # ╟─25c629ef-dd48-4af0-91c8-158ab1fbf7f0
 # ╟─dc8a4b0d-b6f4-4341-a1e6-6a66a0777544
 # ╟─dc62d133-62be-4ef8-a0a1-841042ba3afb
 # ╟─d8ea92ca-6281-4b90-b54a-1c479cb0f5f2
-# ╟─82a5934f-7ba1-435d-ad9f-ffa3b2b2e702
-# ╟─20d6e8f9-9b70-49b6-9081-dc509f506795
+# ╟─42c58e86-9449-4997-9a93-61870cb9d251
+# ╟─863f2c96-32ca-435a-b0d6-9f3b6e566870
+# ╟─641dd88b-23a1-4f16-a492-19dbcc256e8b
+# ╠═928d6171-3396-4d26-8941-53027123b873
+# ╟─f630922d-e981-4948-9aaf-83371a6b4b90
+# ╠═12f472c3-9126-4877-802f-ab68f103f3b1
+# ╟─99fdfb03-1af4-41e2-83b9-4bebeca74e96
+# ╠═de296574-c8ea-400a-9d94-da78094570ea
+# ╟─33df57e7-e246-42ea-b909-fddd09e85b34
+# ╠═54d9d3b3-4bc0-41bb-b838-574ee48848ba
+# ╟─ccf0ffc9-9963-45d6-be4d-abb7f8360b26
+# ╠═4bfa2623-b78b-4154-a6a2-1d29b6f0facc
+# ╟─e64e54a6-88a9-4261-adb6-307954118ed4
+# ╠═4d77250e-731f-45a8-8857-8e1e009d603b
+# ╟─225d07c8-ebab-403a-aa50-00bb42ea3522
+# ╟─07e23d0b-2d12-4cff-9e7b-320216b246ee
+# ╠═4552e0b9-8fba-4f33-a33d-9c50572a7d10
+# ╟─69497b83-da6a-455a-a5ed-1e6d828722aa
+# ╠═ef33ae25-bf5b-45a8-b31c-e70c83952345
+# ╟─d913bbcd-7baf-43c6-8153-4d71777951ce
+# ╠═bab2f964-0b54-4a51-ba1e-99ce1c6ec9c4
+# ╟─87195d68-50b6-4346-8183-c79aedec9b88
+# ╠═afe83872-dc58-4a70-b4dd-d381b37f7e5f
+# ╟─16b223bd-9dfe-4d69-b2d3-6ce03eca5120
+# ╠═22170b40-05f8-49ae-9386-0268fc2d192f
+# ╠═20d6e8f9-9b70-49b6-9081-dc509f506795
+# ╟─f9688f68-d6cd-4a18-aab9-3beb80848c4f
+# ╠═b773915d-7bed-46eb-9277-47128a346b99
+# ╟─d895b7ac-67d7-424a-b577-de74fbd9a735
+# ╠═ae083570-8d89-41ee-a2a0-1a73cea63037
+# ╠═a1ae3b64-e4aa-4835-a1a4-3b14a4a1c9c7
+# ╠═a13aa1b2-c2e2-4ce8-aaad-6a18346c34a8
+# ╠═f601491c-da58-4e7e-b7ab-9a9ca109aae7
+# ╟─b154e07a-2bd4-426a-ab10-2da986304503
+# ╟─488b21ad-c032-4bb6-9f13-dca382134254
+# ╟─8871b0e3-0a02-4516-80c8-fb741d730eb0
+# ╟─6aab0ee0-d6bf-47f6-abbf-870bab6e2385
+# ╠═31e405ce-1eca-4458-9615-d142cf872e38
+# ╠═fa80e92c-123b-4338-848e-e504897d64cf
+# ╠═45e59e94-e174-4112-98e3-84e30701bec4
+# ╟─659996e3-3f72-4cf9-89a0-004285cc321e
+# ╠═21e97b17-8e7b-4f7d-8ad6-9b3f56f0c57a
+# ╟─36651fa6-8bb1-4eca-8de8-93fe8d55eff0
+# ╠═52dff1a0-7f79-4188-aaa6-25a563d40748
+# ╟─71b13205-5459-47c7-bf1f-30b1ca2fdac3
+# ╟─d4f6f713-a684-4dcb-80b0-2021b3d5902d
+# ╠═67354b57-ad30-4791-942e-3ed62e9e3571
+# ╠═38941b87-1e84-4345-96fa-3bc1eb9b017b
+# ╠═271584dc-9617-44d2-9993-84c4aeab11c9
+# ╟─47605488-5844-493c-9a69-f4e4bffa4a57
+# ╠═915b2a97-377b-415b-a12a-dcd62167ac12
+# ╟─c48d0ca0-f847-4fc5-9e65-7d2d82cb4e47
+# ╠═a75397ea-94df-44c7-b65e-3cc2a3b499bd
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
